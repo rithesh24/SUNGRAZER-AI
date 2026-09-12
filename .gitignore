@@ -1,0 +1,27 @@
+# Secrets / local config
+.env
+
+# Data and model artifacts (large binaries stay on the filesystem, out of git)
+data/
+models/
+*.fts
+*.fits
+docs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
