@@ -29,6 +29,11 @@ RECENT_BASE_URL = os.environ.get(
 HTTP_TIMEOUT_SECONDS = float(os.environ.get("LASCO_HTTP_TIMEOUT_SECONDS", "60"))
 DOWNLOAD_RETRIES = int(os.environ.get("LASCO_DOWNLOAD_RETRIES", "3"))
 
+# Maximum time between consecutive frames of one image_sequence. Observed
+# nominal cadence: ~12 min (C3), ~20 min (C2); 60 min tolerates a few missed
+# frames without merging across real observation breaks.
+SEQUENCE_GAP_MINUTES = float(os.environ.get("SEQUENCE_GAP_MINUTES", "60"))
+
 # LASCO cameras with data in the level-0.5 archive. C2/C3 are the
 # coronagraphs relevant to sungrazer detection.
 CAMERAS = ("c2", "c3")

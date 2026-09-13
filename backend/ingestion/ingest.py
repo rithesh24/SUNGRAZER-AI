@@ -19,30 +19,24 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from astropy.io import fits
-
 from ingestion import archive_client, config
 from ingestion.manifest import Manifest, STATUS_COMPLETE, STATUS_FAILED
+from pipeline.fits_io import combined_date_obs, load_science_image
 
 logger = logging.getLogger(__name__)
 
 
 def validate_fits(path: Path) -> str | None:
-    """Open the file as FITS and return DATE-OBS if present.
+    """Validate the file via the shared loader; return the raw DATE-OBS string.
 
-    Raises on unreadable/corrupt files. Level-0.5 files carry image data in
-    the primary HDU; we require at least a 2-D data array somewhere.
+    Delegates to pipeline.fits_io.load_science_image, which raises
+    FitsLoadError for unreadable files, missing 2-D data, or a missing
+    observation time — the last is stricter than the original prototype,
+    which tolerated absent DATE-OBS; frames without a timestamp cannot be
+    sequenced and are now recorded as failed ingestions.
     """
-    with fits.open(path) as hdul:
-        hdul.verify("exception")
-        if not any(hdu.data is not None and getattr(hdu.data, "ndim", 0) >= 2 for hdu in hdul):
-            raise ValueError(f"{path.name}: no 2-D image data in any HDU")
-        header = hdul[0].header
-        date_obs = header.get("DATE-OBS")
-        time_obs = header.get("TIME-OBS")
-        if date_obs and time_obs:
-            return f"{date_obs}T{time_obs}"
-        return str(date_obs) if date_obs else None
+    image = load_science_image(path)
+    return combined_date_obs(image.header)
 
 
 def ingest_day(obs_date: date, camera: str, limit: int | None = None) -> dict:

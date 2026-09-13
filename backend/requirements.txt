@@ -1,2 +1,7 @@
 requests>=2.32
 astropy>=6.0
+scipy>=1.11
+opencv-python-headless>=4.9
+sqlalchemy>=2.0
+alembic>=1.13
+psycopg[binary]>=3.1

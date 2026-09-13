@@ -1,0 +1,23 @@
+# SUNGRAZER AI local services (techspec section 32).
+# Only PostgreSQL is containerized for now; backend/worker/frontend run on the
+# host during early development and get containers when those tasks land.
+services:
+  postgres:
+    image: postgres:17
+    container_name: sungrazer-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sungrazer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sungrazer}
+      POSTGRES_DB: ${POSTGRES_DB:-sungrazer}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sungrazer} -d ${POSTGRES_DB:-sungrazer}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

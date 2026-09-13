@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pipeline.fileio import atomic_write_text
+
 MANIFEST_NAME = "manifest.json"
 
 STATUS_COMPLETE = "complete"
@@ -41,11 +43,8 @@ class Manifest:
         return manifest
 
     def save(self) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".json.tmp")
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(self.entries, fh, indent=2, sort_keys=True)
-        tmp.replace(self.path)
+        atomic_write_text(self.path,
+                          json.dumps(self.entries, indent=2, sort_keys=True))
 
     def is_complete(self, filename: str) -> bool:
         return self.entries.get(filename, {}).get("status") == STATUS_COMPLETE
