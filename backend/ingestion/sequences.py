@@ -7,7 +7,11 @@ Assigns every ungrouped, successfully ingested image (``images.sequence_id
 IS NULL``, ``ingestion_status = 'complete'``, ``observation_time`` present)
 to an ``image_sequences`` row. Grouping is per instrument ("LASCO/C2" and
 "LASCO/C3" never mix) and splits whenever the time between consecutive
-frames exceeds the gap threshold.
+frames exceeds the gap threshold, or the UTC day changes. The day boundary
+is a hard split because LASCO's continuous ~12-min cadence would otherwise
+merge every ingested day into one unbounded sequence, while the dataset
+labels, negative-day records, and leakage rules are all defined per day
+(dataset/labels.py).
 
 Idempotent and incremental: already-grouped images are never touched, and a
 new image joins an existing sequence when its timestamp falls within the gap
@@ -42,7 +46,8 @@ logger = logging.getLogger(__name__)
 
 
 def group_by_gap(times: list[datetime], gap: timedelta) -> list[list[int]]:
-    """Split chronologically sorted timestamps into runs with gaps <= ``gap``.
+    """Split chronologically sorted timestamps into runs with gaps <= ``gap``
+    that never cross a UTC day boundary.
 
     Returns lists of indices into ``times``. Pure function, unit-tested
     offline; the DB code below reuses its semantics for incremental attach.
@@ -51,7 +56,7 @@ def group_by_gap(times: list[datetime], gap: timedelta) -> list[list[int]]:
         return []
     groups: list[list[int]] = [[0]]
     for i in range(1, len(times)):
-        if times[i] - times[i - 1] > gap:
+        if times[i] - times[i - 1] > gap or times[i].date() != times[i - 1].date():
             groups.append([i])
         else:
             groups[-1].append(i)
@@ -60,8 +65,9 @@ def group_by_gap(times: list[datetime], gap: timedelta) -> list[list[int]]:
 
 def _find_adjacent_sequence(session: Session, instrument: str,
                             t: datetime, gap: timedelta) -> ImageSequence | None:
-    """Return an existing sequence whose window [start-gap, end+gap] covers t."""
-    return session.scalars(
+    """Return an existing same-UTC-day sequence whose window
+    [start-gap, end+gap] covers t."""
+    candidates = session.scalars(
         select(ImageSequence)
         .where(
             ImageSequence.instrument == instrument,
@@ -69,8 +75,11 @@ def _find_adjacent_sequence(session: Session, instrument: str,
             ImageSequence.end_time + gap >= t,
         )
         .order_by(ImageSequence.start_time)
-        .limit(1)
-    ).first()
+    ).all()
+    for seq in candidates:
+        if seq.start_time.date() == t.date():
+            return seq
+    return None
 
 
 def _attach(image: Image, sequence: ImageSequence) -> None:
@@ -110,7 +119,8 @@ def build_sequences(session: Session, gap: timedelta) -> dict:
         # Reuse the in-progress sequence when this frame continues it
         # (same instrument, within gap of its end — images arrive sorted).
         if (current is not None and current.instrument == image.instrument
-                and image.observation_time - current.end_time <= gap):
+                and image.observation_time - current.end_time <= gap
+                and image.observation_time.date() == current.end_time.date()):
             _attach(image, current)
             attached += 1
             continue
@@ -163,6 +173,13 @@ def check_sequences(session: Session, gap: timedelta) -> list[str]:
             if f.observation_time is None:
                 problems.append(f"sequence {seq.id}: image {f.id} has no "
                                 f"observation_time")
+        if (frames[0].observation_time and frames[-1].observation_time
+                and frames[0].observation_time.date()
+                != frames[-1].observation_time.date()):
+            problems.append(
+                f"sequence {seq.id}: spans multiple UTC days "
+                f"({frames[0].observation_time.date()} to "
+                f"{frames[-1].observation_time.date()})")
         for a, b in zip(frames, frames[1:]):
             if a.observation_time and b.observation_time \
                     and b.observation_time - a.observation_time > gap:

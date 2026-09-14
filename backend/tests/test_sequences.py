@@ -54,6 +54,14 @@ def test_multiple_splits():
     assert group_by_gap(times, GAP) == [[0, 1], [2, 3], [4]]
 
 
+def test_split_on_utc_day_boundary():
+    # 23:54 -> next-day 00:06 is only 12 min apart but must split:
+    # sequences never cross a UTC day (dataset labels are per day)
+    times = [datetime(2024, 1, 1, 23, 42), datetime(2024, 1, 1, 23, 54),
+             datetime(2024, 1, 2, 0, 6), datetime(2024, 1, 2, 0, 18)]
+    assert group_by_gap(times, GAP) == [[0, 1], [2, 3]]
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
