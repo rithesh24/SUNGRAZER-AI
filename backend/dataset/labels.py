@@ -7,6 +7,7 @@ Usage:
         --sequence-id 1 --verified-against conf_2023.txt,conf_2024.txt
     python -m dataset.labels set-day --soho 4968 --day 2024-01-03 \
         --sequence-id 3 [--tracks id1,id2]
+    python -m dataset.labels set-splits --train d1,d2 --val d3 --test d4
     python -m dataset.labels validate
 
 Label file: ``data/dataset/v1/labels.json`` (``labels_v1``):
@@ -139,6 +140,14 @@ def set_day(labels: dict, soho_number: int, day: str,
                        "ingested" if ingested else "selected")
 
 
+def set_splits(labels: dict, splits: dict[str, list[str]]) -> None:
+    """Assign dataset days to named splits (replaces any existing splits)."""
+    for days in splits.values():
+        for d in days:
+            date.fromisoformat(d)  # validates format
+    labels["splits"] = {split: sorted(days) for split, days in splits.items()}
+
+
 def validate(labels: dict, data_root: Path | None = None) -> list[str]:
     """Full consistency check; returns problems (empty = valid)."""
     problems = []
@@ -197,10 +206,22 @@ def validate(labels: dict, data_root: Path | None = None) -> list[str]:
 
     # Adjacent positive/negative days are allowed but must share a split.
     if labels.get("splits"):
+        data_days = {d for e in labels.get("events", [])
+                     for d, rec in e.get("days", {}).items()
+                     if rec.get("sequence_id") is not None}
+        data_days |= {n["day"] for n in labels.get("negative_days", [])}
         day_split: dict[str, str] = {}
         for split, days in labels["splits"].items():
             for d in days:
+                if d in day_split:
+                    problems.append(f"day {d} in both splits "
+                                    f"{day_split[d]} and {split}")
+                if d not in data_days:
+                    problems.append(f"split {split}: day {d} has no dataset "
+                                    f"data (no ingested sequence)")
                 day_split[d] = split
+        for d in sorted(data_days - day_split.keys()):
+            problems.append(f"day {d} has data but no split assignment")
         for d, split in day_split.items():
             neighbor = (date.fromisoformat(d) + timedelta(days=1)).isoformat()
             if neighbor in day_split and day_split[neighbor] != split:
@@ -230,6 +251,11 @@ def main(argv: list[str] | None = None) -> int:
     p_day.add_argument("--sequence-id", type=int)
     p_day.add_argument("--tracks", default="",
                        help="comma-separated positive track ids")
+    p_split = sub.add_parser("set-splits")
+    p_split.add_argument("--train", required=True,
+                         help="comma-separated dataset days (YYYY-MM-DD)")
+    p_split.add_argument("--val", required=True)
+    p_split.add_argument("--test", required=True)
     sub.add_parser("validate")
     args = parser.parse_args(argv)
 
@@ -253,6 +279,10 @@ def main(argv: list[str] | None = None) -> int:
         tracks = [t for t in args.tracks.split(",") if t]
         set_day(labels, args.soho, args.day, args.sequence_id, tracks)
         print(f"updated SOHO-{args.soho} {args.day}")
+    elif args.command == "set-splits":
+        set_splits(labels, {name: [d for d in getattr(args, name).split(",") if d]
+                            for name in ("train", "val", "test")})
+        print("splits set")
     elif args.command == "validate":
         problems = validate(labels, data_root)
         for p in problems:

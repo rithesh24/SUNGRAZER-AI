@@ -15,6 +15,7 @@ from dataset.labels import (  # noqa: E402
     add_event,
     add_negative_day,
     set_day,
+    set_splits,
     validate,
     LABELS_VERSION,
 )
@@ -99,11 +100,36 @@ def test_negative_day_overlap_detected():
 
 def test_adjacent_days_in_different_splits_flagged():
     labels = _fresh_labels()
-    labels["splits"] = {"train": ["2024-01-01"], "test": ["2024-01-02"]}
+    for day in ("2024-01-01", "2024-01-02", "2024-06-09"):
+        add_negative_day(labels, day, "C3", 1, ["conf.txt"])
+    labels["splits"] = {"train": ["2024-01-01"],
+                        "test": ["2024-01-02", "2024-06-09"]}
     assert any("leakage" in p for p in validate(labels))
     labels["splits"] = {"train": ["2024-01-01", "2024-01-02"],
-                       "test": ["2024-06-09"]}
+                        "test": ["2024-06-09"]}
     assert validate(labels) == []
+
+
+def test_split_day_without_data_flagged():
+    labels = _fresh_labels()
+    add_negative_day(labels, "2024-01-01", "C3", 1, ["conf.txt"])
+    set_splits(labels, {"train": ["2024-01-01"], "test": ["2024-03-15"]})
+    assert any("no dataset data" in p for p in validate(labels))
+
+
+def test_data_day_missing_from_splits_flagged():
+    labels = _fresh_labels()
+    add_negative_day(labels, "2024-01-01", "C3", 1, ["conf.txt"])
+    add_negative_day(labels, "2024-01-10", "C3", 2, ["conf.txt"])
+    set_splits(labels, {"train": ["2024-01-01"]})
+    assert any("no split assignment" in p for p in validate(labels))
+
+
+def test_day_in_two_splits_flagged():
+    labels = _fresh_labels()
+    add_negative_day(labels, "2024-01-01", "C3", 1, ["conf.txt"])
+    set_splits(labels, {"train": ["2024-01-01"], "test": ["2024-01-01"]})
+    assert any("in both splits" in p for p in validate(labels))
 
 
 def test_labeled_but_not_ingested_is_invalid():
