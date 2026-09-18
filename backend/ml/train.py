@@ -16,10 +16,13 @@ BCE-with-logits: sampler oversampling and pos_weight together would
 double-count the correction.
 
 Every run writes an experiment record (claude.md section 19) under
-``data/models/temporal_ranker_v1/run_<confighash>_seed<seed>/``:
+``data/models/temporal_ranker_v1/run_<confighash>_data<labelshash>_seed<seed>/``:
 ``config.json``, ``metrics.json`` (per-epoch history + best), and
-``checkpoint.pt`` (best-val-AP weights). Same config + seed reproduces
-the same run and overwrites its own directory only.
+``checkpoint.pt`` (best-val-AP weights). The run directory is keyed by
+config hash + a labels.json content hash + seed, so retraining after the
+dataset grows lands in a NEW directory instead of overwriting the prior
+experiment (claude.md section 19). Same config + dataset + seed
+reproduces the same run and overwrites its own directory only.
 """
 
 from __future__ import annotations
@@ -68,6 +71,18 @@ class TrainConfig:
     def config_hash(self) -> str:
         payload = json.dumps(self.to_dict(), sort_keys=True)
         return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def dataset_hash(data_root: Path) -> str:
+    """Content hash of labels.json — the dataset identity of a run."""
+    labels_file = data_root / "dataset" / "v1" / "labels.json"
+    return hashlib.sha256(labels_file.read_bytes()).hexdigest()[:8]
+
+
+def run_dir_for(data_root: Path, config: TrainConfig) -> Path:
+    return (data_root / "models" / MODEL_VERSION
+            / f"run_{config.config_hash()}_data{dataset_hash(data_root)}"
+              f"_seed{config.seed}")
 
 
 def seed_everything(seed: int) -> torch.Generator:
@@ -121,8 +136,7 @@ def train(data_root: Path, config: TrainConfig) -> dict:
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     loss_fn = nn.BCEWithLogitsLoss()
 
-    run_dir = (data_root / "models" / MODEL_VERSION
-               / f"run_{config.config_hash()}_seed{config.seed}")
+    run_dir = run_dir_for(data_root, config)
     run_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(run_dir / "config.json",
                       json.dumps(config.to_dict(), indent=2))
@@ -159,6 +173,7 @@ def train(data_root: Path, config: TrainConfig) -> dict:
     record = {
         "model_version": MODEL_VERSION,
         "config_hash": config.config_hash(),
+        "dataset_hash": dataset_hash(data_root),
         "completed_at": datetime.now(timezone.utc).isoformat(),
         "best": best,
         "final_train": train_report,
@@ -172,8 +187,7 @@ def train(data_root: Path, config: TrainConfig) -> dict:
 
 def evaluate_test(data_root: Path, config: TrainConfig) -> dict:
     """Deliberate test-split evaluation of a finished run's checkpoint."""
-    run_dir = (data_root / "models" / MODEL_VERSION
-               / f"run_{config.config_hash()}_seed{config.seed}")
+    run_dir = run_dir_for(data_root, config)
     checkpoint = torch.load(run_dir / "checkpoint.pt", weights_only=True)
     model = TemporalRanker(config.embed_dim, config.hidden_dim)
     model.load_state_dict(checkpoint["state_dict"])
@@ -181,6 +195,7 @@ def evaluate_test(data_root: Path, config: TrainConfig) -> dict:
                                 max_frames=config.max_frames)
     report = evaluate(model, test_set, config.batch_size)
     record = {"model_version": MODEL_VERSION,
+              "dataset_hash": dataset_hash(data_root),
               "checkpoint_epoch": checkpoint["epoch"],
               "evaluated_at": datetime.now(timezone.utc).isoformat(),
               "test": report}
