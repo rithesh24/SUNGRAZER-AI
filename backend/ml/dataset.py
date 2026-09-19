@@ -118,15 +118,45 @@ def resolve_split(labels: dict, split: str, data_root: Path) -> SplitTracks:
     return SplitTracks(positives=positives, negatives=negatives)
 
 
+DNA_FEATURE_COUNT = 9  # keep in sync with _dna_vector
+
+
+def _dna_vector(record: dict) -> np.ndarray:
+    """Fixed-scale Motion DNA feature vector for the ranking model.
+
+    Normalization is deliberately split-independent (hand-chosen constant
+    scales / asinh compression, documented per line) so no train-set
+    statistics leak into val/test. Null features map to 0.0 — neutral
+    under every transform used here.
+    """
+    def v(name: str) -> float:
+        x = record.get(name)
+        return 0.0 if x is None else float(x)
+
+    return np.array([
+        v("radial_speed_px_s") * 360.0,             # px/h / 10; sunward < 0
+        np.arcsinh(v("speed_mean_px_s") * 720.0),   # asinh(px/h / 5)
+        v("direction_consistency"),                 # already [0, 1]
+        np.arcsinh(v("linear_rms_px")),
+        np.arcsinh(v("flux_slope_frac_h") * 10.0),  # brighten/fade rate
+        np.arcsinh(v("flux_cv")),
+        v("frame_coverage"),                        # already [0, 1]
+        np.log1p(v("n_frames")) / 5.0,
+        v("r_min_px") / 500.0,                      # occulter approach depth
+    ], dtype=np.float32)
+
+
 class TrackCropDataset(Dataset):
     """Binary track-classification dataset for one split."""
 
     def __init__(self, data_root: Path, split: str,
-                 max_frames: int = 16, sigma_floor: float = 1e-6):
+                 max_frames: int = 16, sigma_floor: float = 1e-6,
+                 with_dna: bool = False):
         self.data_root = Path(data_root)
         self.split = split
         self.max_frames = max_frames
         self.sigma_floor = sigma_floor
+        self.with_dna = with_dna
         labels_file = self.data_root / "dataset" / "v1" / "labels.json"
         labels = json.loads(labels_file.read_text(encoding="utf-8"))
         tracks = resolve_split(labels, split, self.data_root)
@@ -135,6 +165,19 @@ class TrackCropDataset(Dataset):
                                  torch.zeros(len(tracks.negatives))])
         logger.info("split %s: %d positives, %d negatives",
                     split, len(tracks.positives), len(tracks.negatives))
+        self.dna: dict[str, np.ndarray] = {}
+        if with_dna:
+            for seq_id in sorted({_sequence_of(t) for t in self.track_ids}):
+                dna_file = (self.data_root / "processed" / "motion_dna"
+                            / f"seq_{seq_id}" / "motion_dna.json")
+                features = json.loads(
+                    dna_file.read_text(encoding="utf-8"))["features"]
+                for track_id, record in features.items():
+                    self.dna[track_id] = _dna_vector(record)
+            missing = [t for t in self.track_ids if t not in self.dna]
+            if missing:
+                raise KeyError(f"tracks missing from motion DNA: "
+                               f"{missing[:5]} (+{max(len(missing) - 5, 0)})")
 
     def __len__(self) -> int:
         return len(self.track_ids)
@@ -158,9 +201,12 @@ class TrackCropDataset(Dataset):
             n = self.max_frames
         padded = np.zeros((self.max_frames, *stack.shape[1:]), dtype=np.float32)
         padded[:n] = stack
-        return {
+        item = {
             "crops": torch.from_numpy(padded).unsqueeze(1),  # [T, 1, K, K]
             "length": torch.tensor(n, dtype=torch.long),
             "label": self.labels[index],
             "track_id": track_id,
         }
+        if self.with_dna:
+            item["dna"] = torch.from_numpy(self.dna[track_id])
+        return item

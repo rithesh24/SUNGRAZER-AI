@@ -37,19 +37,32 @@ class CropEncoder(nn.Module):
 
 
 class TemporalRanker(nn.Module):
-    """CNN + GRU + linear scoring head over a padded crop stack."""
+    """CNN + GRU + linear scoring head over a padded crop stack.
 
-    def __init__(self, embed_dim: int = 64, hidden_dim: int = 64):
+    With ``dna_dim > 0`` a per-track Motion DNA feature vector is
+    concatenated to the GRU hidden state before the scoring head
+    (tracker section 15 experiment; the crop-only baseline is dna_dim=0).
+    """
+
+    def __init__(self, embed_dim: int = 64, hidden_dim: int = 64,
+                 dna_dim: int = 0):
         super().__init__()
+        self.dna_dim = dna_dim
         self.encoder = CropEncoder(embed_dim)
         self.gru = nn.GRU(embed_dim, hidden_dim, batch_first=True)
-        self.head = nn.Linear(hidden_dim, 1)
+        self.head = nn.Linear(hidden_dim + dna_dim, 1)
 
-    def forward(self, crops: torch.Tensor,
-                lengths: torch.Tensor) -> torch.Tensor:
+    def forward(self, crops: torch.Tensor, lengths: torch.Tensor,
+                dna: torch.Tensor | None = None) -> torch.Tensor:
         batch, frames = crops.shape[:2]
         embeddings = self.encoder(crops.flatten(0, 1)).view(batch, frames, -1)
         packed = nn.utils.rnn.pack_padded_sequence(
             embeddings, lengths.cpu(), batch_first=True, enforce_sorted=False)
         _, hidden = self.gru(packed)  # hidden: [1, B, H] = last real frame
-        return self.head(hidden.squeeze(0)).squeeze(-1)
+        features = hidden.squeeze(0)
+        if self.dna_dim:
+            if dna is None:
+                raise ValueError("model built with dna_dim > 0 but no dna "
+                                 "features were passed")
+            features = torch.cat([features, dna], dim=-1)
+        return self.head(features).squeeze(-1)

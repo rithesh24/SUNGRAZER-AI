@@ -43,7 +43,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from ml.dataset import TrackCropDataset
+from ml.dataset import DNA_FEATURE_COUNT, TrackCropDataset
 from ml.metrics import ranking_report
 from ml.net import MODEL_VERSION, TemporalRanker
 from pipeline.fileio import atomic_write_text
@@ -63,7 +63,12 @@ class TrainConfig:
     embed_dim: int = 64
     hidden_dim: int = 64
     positive_fraction: float = 0.1  # expected positive share per epoch
+    use_dna: bool = False  # concat Motion DNA features before the head
     seed: int = 0
+
+    @property
+    def dna_dim(self) -> int:
+        return DNA_FEATURE_COUNT if self.use_dna else 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -112,27 +117,34 @@ def make_train_loader(dataset: TrackCropDataset, config: TrainConfig,
 
 @torch.no_grad()
 def evaluate(model: nn.Module, dataset: TrackCropDataset,
-             batch_size: int) -> dict:
+             batch_size: int, return_scores: bool = False):
     """Score every track of a split and compute the ranking report."""
     model.eval()
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     scores, labels = [], []
     for batch in loader:
-        logits = model(batch["crops"], batch["length"])
+        logits = model(batch["crops"], batch["length"], batch.get("dna"))
         scores.append(torch.sigmoid(logits))
         labels.append(batch["label"])
-    return ranking_report(torch.cat(labels).numpy(),
-                          torch.cat(scores).numpy())
+    scores = torch.cat(scores).numpy()
+    labels = torch.cat(labels).numpy()
+    report = ranking_report(labels, scores)
+    if return_scores:
+        return report, scores, labels
+    return report
 
 
 def train(data_root: Path, config: TrainConfig) -> dict:
     generator = seed_everything(config.seed)
     train_set = TrackCropDataset(data_root, "train",
-                                 max_frames=config.max_frames)
-    val_set = TrackCropDataset(data_root, "val", max_frames=config.max_frames)
+                                 max_frames=config.max_frames,
+                                 with_dna=config.use_dna)
+    val_set = TrackCropDataset(data_root, "val", max_frames=config.max_frames,
+                               with_dna=config.use_dna)
     loader = make_train_loader(train_set, config, generator)
 
-    model = TemporalRanker(config.embed_dim, config.hidden_dim)
+    model = TemporalRanker(config.embed_dim, config.hidden_dim,
+                           dna_dim=config.dna_dim)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     loss_fn = nn.BCEWithLogitsLoss()
 
@@ -147,7 +159,7 @@ def train(data_root: Path, config: TrainConfig) -> dict:
         epoch_loss, n_batches = 0.0, 0
         for batch in loader:
             optimizer.zero_grad()
-            logits = model(batch["crops"], batch["length"])
+            logits = model(batch["crops"], batch["length"], batch.get("dna"))
             loss = loss_fn(logits, batch["label"])
             loss.backward()
             optimizer.step()
@@ -189,21 +201,34 @@ def evaluate_test(data_root: Path, config: TrainConfig) -> dict:
     """Deliberate test-split evaluation of a finished run's checkpoint."""
     run_dir = run_dir_for(data_root, config)
     checkpoint = torch.load(run_dir / "checkpoint.pt", weights_only=True)
-    model = TemporalRanker(config.embed_dim, config.hidden_dim)
+    model = TemporalRanker(config.embed_dim, config.hidden_dim,
+                           dna_dim=config.dna_dim)
     model.load_state_dict(checkpoint["state_dict"])
     test_set = TrackCropDataset(data_root, "test",
-                                max_frames=config.max_frames)
-    report = evaluate(model, test_set, config.batch_size)
+                                max_frames=config.max_frames,
+                                with_dna=config.use_dna)
+    report, scores, labels = evaluate(model, test_set, config.batch_size,
+                                      return_scores=True)
+    order = np.argsort(-scores)
+    rank = np.empty(len(scores), dtype=int)
+    rank[order] = np.arange(1, len(scores) + 1)
+    positive_ranks = {test_set.track_ids[i]: int(rank[i])
+                      for i in np.where(labels == 1)[0]}
     record = {"model_version": MODEL_VERSION,
               "dataset_hash": dataset_hash(data_root),
               "checkpoint_epoch": checkpoint["epoch"],
               "evaluated_at": datetime.now(timezone.utc).isoformat(),
-              "test": report}
+              "test": report,
+              "positive_ranks": positive_ranks}
     atomic_write_text(run_dir / "test_metrics.json",
                       json.dumps(record, indent=2))
     logger.info("test: AP %.4f  R@50 %.2f  (%d pos / %d tracks)",
                 report["average_precision"], report["recall_at_50"],
                 report["n_pos"], report["n_total"])
+    for track_id, track_rank in sorted(positive_ranks.items(),
+                                       key=lambda kv: kv[1]):
+        logger.info("  positive %s rank %d/%d",
+                    track_id, track_rank, report["n_total"])
     return record
 
 
@@ -213,12 +238,18 @@ def main(argv: list[str] | None = None) -> int:
                         default=os.environ.get("SOHO_DATA_ROOT", "data"))
     parser.add_argument("--epochs", type=int, default=TrainConfig.epochs)
     parser.add_argument("--seed", type=int, default=TrainConfig.seed)
+    parser.add_argument("--max-frames", type=int,
+                        default=TrainConfig.max_frames)
+    parser.add_argument("--use-dna", action="store_true",
+                        help="concatenate Motion DNA features to the GRU "
+                             "state before the scoring head")
     parser.add_argument("--evaluate-test", action="store_true",
                         help="evaluate an existing checkpoint on the test "
                              "split (deliberate, logged)")
     args = parser.parse_args(argv)
     logging.basicConfig(level="INFO", format="%(levelname)s %(message)s")
-    config = TrainConfig(epochs=args.epochs, seed=args.seed)
+    config = TrainConfig(epochs=args.epochs, seed=args.seed,
+                         max_frames=args.max_frames, use_dna=args.use_dna)
     if args.evaluate_test:
         evaluate_test(Path(args.data_root), config)
     else:

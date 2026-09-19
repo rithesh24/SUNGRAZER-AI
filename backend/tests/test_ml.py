@@ -132,6 +132,30 @@ def test_model_forward_and_padding_mask():
     assert torch.allclose(logits[1], logits2[1], atol=1e-6)
 
 
+def test_model_dna_path_and_null_features():
+    torch.manual_seed(0)
+    from ml.dataset import DNA_FEATURE_COUNT, _dna_vector
+    # Null features map to 0.0 and never NaN.
+    vec = _dna_vector({"radial_speed_px_s": None, "n_frames": 12})
+    assert vec.shape == (DNA_FEATURE_COUNT,)
+    assert np.isfinite(vec).all() and vec[0] == 0.0
+    model = TemporalRanker(embed_dim=16, hidden_dim=16,
+                           dna_dim=DNA_FEATURE_COUNT)
+    crops = torch.randn(2, 5, 1, 8, 8)
+    lengths = torch.tensor([5, 3])
+    dna = torch.randn(2, DNA_FEATURE_COUNT)
+    assert model(crops, lengths, dna).shape == (2,)
+    # DNA must actually influence the score.
+    assert not torch.allclose(model(crops, lengths, dna),
+                              model(crops, lengths, dna + 1.0))
+    # dna_dim > 0 without features is an explicit error, not a silent skip.
+    try:
+        model(crops, lengths)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 def main() -> int:
     failures = 0
     for name, fn in sorted(globals().items()):
