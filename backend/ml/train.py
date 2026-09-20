@@ -64,6 +64,8 @@ class TrainConfig:
     hidden_dim: int = 64
     positive_fraction: float = 0.1  # expected positive share per epoch
     use_dna: bool = False  # concat Motion DNA features before the head
+    dropout: float = 0.0  # on frame embeddings + pooled features (ml.net)
+    weight_decay: float = 0.0  # Adam L2 regularization
     seed: int = 0
 
     @property
@@ -90,13 +92,45 @@ def run_dir_for(data_root: Path, config: TrainConfig) -> Path:
               f"_seed{config.seed}")
 
 
+def pick_device() -> torch.device:
+    """CUDA when available, else CPU. Recorded in every run's metrics."""
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def seed_everything(seed: int) -> torch.Generator:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    # Reproducibility over raw speed on GPU (claude.md section 19); the
+    # convolutions here are tiny, the deterministic algorithms cost little.
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     generator = torch.Generator()
     generator.manual_seed(seed)
     return generator
+
+
+def to_device(batch: dict, device: torch.device) -> dict:
+    """Move a loader batch's tensors to the device (lengths stay CPU-safe:
+    pack_padded_sequence calls .cpu() on them in ml.net)."""
+    return {k: v.to(device) if isinstance(v, torch.Tensor) else v
+            for k, v in batch.items()}
+
+
+NUM_WORKERS = int(os.environ.get("ML_DATALOADER_WORKERS", "4"))
+
+
+def _loader_kwargs() -> dict:
+    """Parallel data loading so disk/CPU work overlaps model compute.
+
+    Deterministic here: the dataset applies no random transforms and the
+    sampler runs (seeded) in the main process, so worker count does not
+    affect results.
+    """
+    if NUM_WORKERS <= 0:
+        return {}
+    return {"num_workers": NUM_WORKERS, "persistent_workers": True,
+            "pin_memory": torch.cuda.is_available()}
 
 
 def make_train_loader(dataset: TrackCropDataset, config: TrainConfig,
@@ -112,20 +146,25 @@ def make_train_loader(dataset: TrackCropDataset, config: TrainConfig,
     sampler = WeightedRandomSampler(
         torch.as_tensor(weights, dtype=torch.double), num_samples=len(dataset),
         replacement=True, generator=generator)
-    return DataLoader(dataset, batch_size=config.batch_size, sampler=sampler)
+    return DataLoader(dataset, batch_size=config.batch_size, sampler=sampler,
+                      **_loader_kwargs())
 
 
 @torch.no_grad()
 def evaluate(model: nn.Module, dataset: TrackCropDataset,
-             batch_size: int, return_scores: bool = False):
+             batch_size: int, return_scores: bool = False,
+             device: torch.device | None = None):
     """Score every track of a split and compute the ranking report."""
+    device = device or pick_device()
     model.eval()
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                        **_loader_kwargs())
     scores, labels = [], []
     for batch in loader:
+        batch = to_device(batch, device)
         logits = model(batch["crops"], batch["length"], batch.get("dna"))
-        scores.append(torch.sigmoid(logits))
-        labels.append(batch["label"])
+        scores.append(torch.sigmoid(logits).cpu())
+        labels.append(batch["label"].cpu())
     scores = torch.cat(scores).numpy()
     labels = torch.cat(labels).numpy()
     report = ranking_report(labels, scores)
@@ -143,9 +182,13 @@ def train(data_root: Path, config: TrainConfig) -> dict:
                                with_dna=config.use_dna)
     loader = make_train_loader(train_set, config, generator)
 
+    device = pick_device()
+    logger.info("training on %s", device)
     model = TemporalRanker(config.embed_dim, config.hidden_dim,
-                           dna_dim=config.dna_dim)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+                           dna_dim=config.dna_dim,
+                           dropout=config.dropout).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate,
+                                 weight_decay=config.weight_decay)
     loss_fn = nn.BCEWithLogitsLoss()
 
     run_dir = run_dir_for(data_root, config)
@@ -158,6 +201,7 @@ def train(data_root: Path, config: TrainConfig) -> dict:
         model.train()
         epoch_loss, n_batches = 0.0, 0
         for batch in loader:
+            batch = to_device(batch, device)
             optimizer.zero_grad()
             logits = model(batch["crops"], batch["length"], batch.get("dna"))
             loss = loss_fn(logits, batch["label"])
@@ -165,7 +209,8 @@ def train(data_root: Path, config: TrainConfig) -> dict:
             optimizer.step()
             epoch_loss += float(loss.detach())
             n_batches += 1
-        val_report = evaluate(model, val_set, config.batch_size)
+        val_report = evaluate(model, val_set, config.batch_size,
+                              device=device)
         entry = {"epoch": epoch, "train_loss": epoch_loss / max(n_batches, 1),
                  "val": val_report}
         history.append(entry)
@@ -181,11 +226,13 @@ def train(data_root: Path, config: TrainConfig) -> dict:
                         "state_dict": model.state_dict()},
                        run_dir / "checkpoint.pt")
 
-    train_report = evaluate(model, train_set, config.batch_size)
+    train_report = evaluate(model, train_set, config.batch_size,
+                            device=device)
     record = {
         "model_version": MODEL_VERSION,
         "config_hash": config.config_hash(),
         "dataset_hash": dataset_hash(data_root),
+        "device": str(device),
         "completed_at": datetime.now(timezone.utc).isoformat(),
         "best": best,
         "final_train": train_report,
@@ -200,15 +247,18 @@ def train(data_root: Path, config: TrainConfig) -> dict:
 def evaluate_test(data_root: Path, config: TrainConfig) -> dict:
     """Deliberate test-split evaluation of a finished run's checkpoint."""
     run_dir = run_dir_for(data_root, config)
-    checkpoint = torch.load(run_dir / "checkpoint.pt", weights_only=True)
+    device = pick_device()
+    checkpoint = torch.load(run_dir / "checkpoint.pt", weights_only=True,
+                            map_location=device)
     model = TemporalRanker(config.embed_dim, config.hidden_dim,
-                           dna_dim=config.dna_dim)
+                           dna_dim=config.dna_dim,
+                           dropout=config.dropout).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     test_set = TrackCropDataset(data_root, "test",
                                 max_frames=config.max_frames,
                                 with_dna=config.use_dna)
     report, scores, labels = evaluate(model, test_set, config.batch_size,
-                                      return_scores=True)
+                                      return_scores=True, device=device)
     order = np.argsort(-scores)
     rank = np.empty(len(scores), dtype=int)
     rank[order] = np.arange(1, len(scores) + 1)
@@ -243,13 +293,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--use-dna", action="store_true",
                         help="concatenate Motion DNA features to the GRU "
                              "state before the scoring head")
+    parser.add_argument("--dropout", type=float,
+                        default=TrainConfig.dropout,
+                        help="dropout on frame embeddings + pooled features")
+    parser.add_argument("--weight-decay", type=float,
+                        default=TrainConfig.weight_decay,
+                        help="Adam weight decay (L2)")
     parser.add_argument("--evaluate-test", action="store_true",
                         help="evaluate an existing checkpoint on the test "
                              "split (deliberate, logged)")
     args = parser.parse_args(argv)
     logging.basicConfig(level="INFO", format="%(levelname)s %(message)s")
     config = TrainConfig(epochs=args.epochs, seed=args.seed,
-                         max_frames=args.max_frames, use_dna=args.use_dna)
+                         max_frames=args.max_frames, use_dna=args.use_dna,
+                         dropout=args.dropout,
+                         weight_decay=args.weight_decay)
     if args.evaluate_test:
         evaluate_test(Path(args.data_root), config)
     else:

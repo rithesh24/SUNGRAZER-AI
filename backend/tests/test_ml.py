@@ -132,6 +132,18 @@ def test_model_forward_and_padding_mask():
     assert torch.allclose(logits[1], logits2[1], atol=1e-6)
 
 
+def test_model_dropout_identity_in_eval():
+    torch.manual_seed(0)
+    model = TemporalRanker(embed_dim=16, hidden_dim=16, dropout=0.5)
+    crops = torch.randn(2, 5, 1, 8, 8)
+    lengths = torch.tensor([5, 3])
+    model.eval()  # dropout must be an identity at inference time
+    assert torch.allclose(model(crops, lengths), model(crops, lengths))
+    # Old checkpoints (no dropout) load into a dropout model: no new params.
+    plain = TemporalRanker(embed_dim=16, hidden_dim=16)
+    model.load_state_dict(plain.state_dict())
+
+
 def test_model_dna_path_and_null_features():
     torch.manual_seed(0)
     from ml.dataset import DNA_FEATURE_COUNT, _dna_vector

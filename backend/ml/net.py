@@ -42,13 +42,18 @@ class TemporalRanker(nn.Module):
     With ``dna_dim > 0`` a per-track Motion DNA feature vector is
     concatenated to the GRU hidden state before the scoring head
     (tracker section 15 experiment; the crop-only baseline is dna_dim=0).
+
+    ``dropout`` (section 15 regularization experiments) is applied to the
+    frame embeddings before the GRU and to the pooled features before the
+    head; 0.0 (the baseline) is an identity.
     """
 
     def __init__(self, embed_dim: int = 64, hidden_dim: int = 64,
-                 dna_dim: int = 0):
+                 dna_dim: int = 0, dropout: float = 0.0):
         super().__init__()
         self.dna_dim = dna_dim
         self.encoder = CropEncoder(embed_dim)
+        self.dropout = nn.Dropout(dropout)
         self.gru = nn.GRU(embed_dim, hidden_dim, batch_first=True)
         self.head = nn.Linear(hidden_dim + dna_dim, 1)
 
@@ -56,10 +61,11 @@ class TemporalRanker(nn.Module):
                 dna: torch.Tensor | None = None) -> torch.Tensor:
         batch, frames = crops.shape[:2]
         embeddings = self.encoder(crops.flatten(0, 1)).view(batch, frames, -1)
+        embeddings = self.dropout(embeddings)
         packed = nn.utils.rnn.pack_padded_sequence(
             embeddings, lengths.cpu(), batch_first=True, enforce_sorted=False)
         _, hidden = self.gru(packed)  # hidden: [1, B, H] = last real frame
-        features = hidden.squeeze(0)
+        features = self.dropout(hidden.squeeze(0))
         if self.dna_dim:
             if dna is None:
                 raise ValueError("model built with dna_dim > 0 but no dna "
