@@ -1,0 +1,284 @@
+=== ml.train --seed 1 : start 2026-09-21T21:12:53.3921657+05:30 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 319, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 314, in main
+    train(Path(args.data_root), config)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 178, in train
+    train_set = TrackCropDataset(data_root, "train",
+                                 max_frames=config.max_frames,
+                                 with_dna=config.use_dna)
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\dataset.py", line 161, in __init__
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+                        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data\\dataset\\v1\\labels.json'
+=== exit 1 2026-09-21T21:12:58.9883268+05:30 ===
+=== ml.train --seed 2 : start 2026-09-21T21:12:59.0101546+05:30 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 319, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 314, in main
+    train(Path(args.data_root), config)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 178, in train
+    train_set = TrackCropDataset(data_root, "train",
+                                 max_frames=config.max_frames,
+                                 with_dna=config.use_dna)
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\dataset.py", line 161, in __init__
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+                        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data\\dataset\\v1\\labels.json'
+=== exit 1 2026-09-21T21:13:03.5539091+05:30 ===
+=== ml.train --use-dna --seed 1 : start 2026-09-21T21:13:03.5701712+05:30 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 319, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 314, in main
+    train(Path(args.data_root), config)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 178, in train
+    train_set = TrackCropDataset(data_root, "train",
+                                 max_frames=config.max_frames,
+                                 with_dna=config.use_dna)
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\dataset.py", line 161, in __init__
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+                        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data\\dataset\\v1\\labels.json'
+=== exit 1 2026-09-21T21:13:08.3460159+05:30 ===
+=== ml.train --use-dna --seed 2 : start 2026-09-21T21:13:08.3721440+05:30 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 319, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 314, in main
+    train(Path(args.data_root), config)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\train.py", line 178, in train
+    train_set = TrackCropDataset(data_root, "train",
+                                 max_frames=config.max_frames,
+                                 with_dna=config.use_dna)
+  File "C:\Users\RITHESH\Downloads\SUNGRAZER AI\backend\ml\dataset.py", line 161, in __init__
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+                        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\RITHESH\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'data\\dataset\\v1\\labels.json'
+=== exit 1 2026-09-21T21:13:13.0133419+05:30 ===
+=== ml.train --seed 1 : start 2026-09-21T21:14:12.9645600+05:30 ===
+INFO split train: excluding seq [4] from the negative pool (unlabeled comet day 2024-01-02)
+INFO split train: excluding seq [16] from the negative pool (unlabeled comet day 2024-06-29)
+INFO split train: excluding seq [27] from the negative pool (unlabeled comet day 2024-04-03)
+INFO split train: excluding seq [28] from the negative pool (unlabeled comet day 2024-04-04)
+INFO split train: excluding seq [33] from the negative pool (unlabeled comet day 2024-07-10)
+INFO split train: 12 positives, 12638 negatives
+INFO split val: excluding seq [12] from the negative pool (unlabeled comet day 2024-02-03)
+INFO split val: 3 positives, 1073 negatives
+INFO training on cuda
+INFO epoch 1: loss 0.1873  val AP 0.0217  val R@50 0.33
+INFO epoch 2: loss 0.0382  val AP 0.3455  val R@50 0.33
+INFO epoch 3: loss 0.0069  val AP 0.3495  val R@50 0.67
+INFO epoch 4: loss 0.0026  val AP 0.1051  val R@50 0.67
+INFO epoch 5: loss 0.0007  val AP 0.3573  val R@50 0.67
+INFO epoch 6: loss 0.0003  val AP 0.3660  val R@50 0.67
+INFO epoch 7: loss 0.0085  val AP 0.6682  val R@50 0.67
+INFO epoch 8: loss 0.0005  val AP 0.6682  val R@50 0.67
+INFO epoch 9: loss 0.0002  val AP 0.6679  val R@50 0.67
+INFO epoch 10: loss 0.0002  val AP 0.6684  val R@50 0.67
+INFO epoch 11: loss 0.0001  val AP 0.6683  val R@50 0.67
+INFO epoch 12: loss 0.0001  val AP 0.6682  val R@50 0.67
+INFO epoch 13: loss 0.0001  val AP 0.6678  val R@50 0.67
+INFO epoch 14: loss 0.0037  val AP 0.6696  val R@50 0.67
+INFO epoch 15: loss 0.0011  val AP 0.6732  val R@50 0.67
+INFO epoch 16: loss 0.0001  val AP 0.6689  val R@50 0.67
+INFO epoch 17: loss 0.0020  val AP 0.6679  val R@50 0.67
+INFO epoch 18: loss 0.0012  val AP 0.6689  val R@50 0.67
+INFO epoch 19: loss 0.0001  val AP 0.6676  val R@50 0.67
+INFO epoch 20: loss 0.0000  val AP 0.6676  val R@50 0.67
+INFO run complete: best val AP 0.6732 (epoch 15) -> C:\Users\RITHESH\Downloads\SUNGRAZER AI\data\models\temporal_ranker_v1\run_337315eb45af3833_data4e7cca25_seed1
+=== train exit 0 ===
+INFO split test: excluding seq [21] from the negative pool (unlabeled comet day 2024-09-27)
+INFO split test: excluding seq [22] from the negative pool (unlabeled comet day 2024-09-28)
+INFO split test: excluding seq [24] from the negative pool (unlabeled comet day 2024-11-22)
+INFO split test: 5 positives, 7484 negatives
+INFO test: AP 0.1544  R@50 0.60  (5 pos / 7489 tracks)
+INFO   positive seq24_e91e65277cbe11c1_00106 rank 2/7489
+INFO   positive seq26_e91e65277cbe11c1_00068 rank 11/7489
+INFO   positive seq9_e91e65277cbe11c1_00045 rank 34/7489
+INFO   positive seq13_e91e65277cbe11c1_00279 rank 4988/7489
+INFO   positive seq25_e91e65277cbe11c1_00836 rank 5114/7489
+=== eval exit 0 2026-09-21T21:31:53.8579248+05:30 ===
+=== ml.train --seed 2 : start 2026-09-21T21:31:53.8842148+05:30 ===
+INFO split train: excluding seq [4] from the negative pool (unlabeled comet day 2024-01-02)
+INFO split train: excluding seq [16] from the negative pool (unlabeled comet day 2024-06-29)
+INFO split train: excluding seq [27] from the negative pool (unlabeled comet day 2024-04-03)
+INFO split train: excluding seq [28] from the negative pool (unlabeled comet day 2024-04-04)
+INFO split train: excluding seq [33] from the negative pool (unlabeled comet day 2024-07-10)
+INFO split train: 12 positives, 12638 negatives
+INFO split val: excluding seq [12] from the negative pool (unlabeled comet day 2024-02-03)
+INFO split val: 3 positives, 1073 negatives
+INFO training on cuda
+INFO epoch 1: loss 0.2007  val AP 0.0259  val R@50 0.33
+INFO epoch 2: loss 0.0531  val AP 0.0320  val R@50 0.33
+INFO epoch 3: loss 0.0101  val AP 0.0625  val R@50 0.67
+INFO epoch 4: loss 0.0062  val AP 0.0765  val R@50 0.67
+INFO epoch 5: loss 0.0023  val AP 0.0965  val R@50 0.67
+INFO epoch 6: loss 0.0024  val AP 0.0988  val R@50 0.67
+INFO epoch 7: loss 0.0004  val AP 0.1168  val R@50 0.67
+INFO epoch 8: loss 0.0002  val AP 0.0820  val R@50 0.67
+INFO epoch 9: loss 0.0002  val AP 0.1153  val R@50 0.67
+INFO epoch 10: loss 0.0001  val AP 0.1306  val R@50 0.67
+INFO epoch 11: loss 0.0001  val AP 0.1343  val R@50 0.67
+INFO epoch 12: loss 0.0001  val AP 0.1677  val R@50 0.67
+INFO epoch 13: loss 0.0000  val AP 0.1634  val R@50 0.67
+INFO epoch 14: loss 0.0000  val AP 0.1598  val R@50 0.67
+INFO epoch 15: loss 0.0000  val AP 0.1567  val R@50 0.67
+INFO epoch 16: loss 0.0000  val AP 0.1788  val R@50 0.67
+INFO epoch 17: loss 0.0000  val AP 0.1677  val R@50 0.67
+INFO epoch 18: loss 0.0000  val AP 0.1729  val R@50 0.67
+INFO epoch 19: loss 0.0000  val AP 0.2345  val R@50 0.67
+INFO epoch 20: loss 0.0097  val AP 0.1262  val R@50 0.67
+INFO run complete: best val AP 0.2345 (epoch 19) -> C:\Users\RITHESH\Downloads\SUNGRAZER AI\data\models\temporal_ranker_v1\run_454a68f3c82cea02_data4e7cca25_seed2
+=== train exit 0 ===
+INFO split test: excluding seq [21] from the negative pool (unlabeled comet day 2024-09-27)
+INFO split test: excluding seq [22] from the negative pool (unlabeled comet day 2024-09-28)
+INFO split test: excluding seq [24] from the negative pool (unlabeled comet day 2024-11-22)
+INFO split test: 5 positives, 7484 negatives
+INFO test: AP 0.4005  R@50 0.40  (5 pos / 7489 tracks)
+INFO   positive seq24_e91e65277cbe11c1_00106 rank 1/7489
+INFO   positive seq9_e91e65277cbe11c1_00045 rank 2/7489
+INFO   positive seq26_e91e65277cbe11c1_00068 rank 3092/7489
+INFO   positive seq13_e91e65277cbe11c1_00279 rank 6140/7489
+INFO   positive seq25_e91e65277cbe11c1_00836 rank 7155/7489
+=== eval exit 0 2026-09-21T21:48:26.1413725+05:30 ===
+=== ml.train --use-dna --seed 1 : start 2026-09-21T21:48:26.1693078+05:30 ===
+INFO split train: excluding seq [4] from the negative pool (unlabeled comet day 2024-01-02)
+INFO split train: excluding seq [16] from the negative pool (unlabeled comet day 2024-06-29)
+INFO split train: excluding seq [27] from the negative pool (unlabeled comet day 2024-04-03)
+INFO split train: excluding seq [28] from the negative pool (unlabeled comet day 2024-04-04)
+INFO split train: excluding seq [33] from the negative pool (unlabeled comet day 2024-07-10)
+INFO split train: 12 positives, 12638 negatives
+INFO split val: excluding seq [12] from the negative pool (unlabeled comet day 2024-02-03)
+INFO split val: 3 positives, 1073 negatives
+INFO training on cuda
+INFO epoch 1: loss 0.1788  val AP 0.0795  val R@50 0.33
+INFO epoch 2: loss 0.0228  val AP 0.5574  val R@50 0.67
+INFO epoch 3: loss 0.0050  val AP 0.5571  val R@50 0.67
+INFO epoch 4: loss 0.0012  val AP 0.4462  val R@50 0.67
+INFO epoch 5: loss 0.0004  val AP 0.4091  val R@50 0.67
+INFO epoch 6: loss 0.0002  val AP 0.3827  val R@50 0.67
+INFO epoch 7: loss 0.0002  val AP 0.3653  val R@50 0.67
+INFO epoch 8: loss 0.0303  val AP 0.6789  val R@50 0.67
+INFO epoch 9: loss 0.0014  val AP 0.6692  val R@50 0.67
+INFO epoch 10: loss 0.0008  val AP 0.6855  val R@50 0.67
+INFO epoch 11: loss 0.0003  val AP 0.6763  val R@50 0.67
+INFO epoch 12: loss 0.0001  val AP 0.6713  val R@50 0.67
+INFO epoch 13: loss 0.0001  val AP 0.6683  val R@50 0.67
+INFO epoch 14: loss 0.0001  val AP 0.6692  val R@50 0.67
+INFO epoch 15: loss 0.0000  val AP 0.6686  val R@50 0.67
+INFO epoch 16: loss 0.0000  val AP 0.6684  val R@50 0.67
+INFO epoch 17: loss 0.0000  val AP 0.6683  val R@50 0.67
+INFO epoch 18: loss 0.0000  val AP 0.6684  val R@50 0.67
+INFO epoch 19: loss 0.0000  val AP 0.6684  val R@50 0.67
+INFO epoch 20: loss 0.0000  val AP 0.6684  val R@50 0.67
+INFO run complete: best val AP 0.6855 (epoch 10) -> C:\Users\RITHESH\Downloads\SUNGRAZER AI\data\models\temporal_ranker_v1\run_87ce5a71f422b3f1_data4e7cca25_seed1
+=== train exit 0 ===
+INFO split test: excluding seq [21] from the negative pool (unlabeled comet day 2024-09-27)
+INFO split test: excluding seq [22] from the negative pool (unlabeled comet day 2024-09-28)
+INFO split test: excluding seq [24] from the negative pool (unlabeled comet day 2024-11-22)
+INFO split test: 5 positives, 7484 negatives
+INFO test: AP 0.2993  R@50 0.60  (5 pos / 7489 tracks)
+INFO   positive seq24_e91e65277cbe11c1_00106 rank 1/7489
+INFO   positive seq26_e91e65277cbe11c1_00068 rank 7/7489
+INFO   positive seq9_e91e65277cbe11c1_00045 rank 15/7489
+INFO   positive seq13_e91e65277cbe11c1_00279 rank 407/7489
+INFO   positive seq25_e91e65277cbe11c1_00836 rank 6155/7489
+=== eval exit 0 2026-09-21T22:10:58.3934095+05:30 ===
+=== ml.train --use-dna --seed 2 : start 2026-09-21T22:10:58.4164022+05:30 ===
+INFO split train: excluding seq [4] from the negative pool (unlabeled comet day 2024-01-02)
+INFO split train: excluding seq [16] from the negative pool (unlabeled comet day 2024-06-29)
+INFO split train: excluding seq [27] from the negative pool (unlabeled comet day 2024-04-03)
+INFO split train: excluding seq [28] from the negative pool (unlabeled comet day 2024-04-04)
+INFO split train: excluding seq [33] from the negative pool (unlabeled comet day 2024-07-10)
+INFO split train: 12 positives, 12638 negatives
+INFO split val: excluding seq [12] from the negative pool (unlabeled comet day 2024-02-03)
+INFO split val: 3 positives, 1073 negatives
+INFO training on cuda
+INFO epoch 1: loss 0.2002  val AP 0.0711  val R@50 0.67
+INFO epoch 2: loss 0.0523  val AP 0.0269  val R@50 0.33
+INFO epoch 3: loss 0.0117  val AP 0.0254  val R@50 0.33
+INFO epoch 4: loss 0.0036  val AP 0.0333  val R@50 0.67
+INFO epoch 5: loss 0.0074  val AP 0.0615  val R@50 0.67
+INFO epoch 6: loss 0.0014  val AP 0.2427  val R@50 0.67
+INFO epoch 7: loss 0.0041  val AP 0.0805  val R@50 0.67
+INFO epoch 8: loss 0.0040  val AP 0.0286  val R@50 0.67
+INFO epoch 9: loss 0.0005  val AP 0.0311  val R@50 0.67
+INFO epoch 10: loss 0.0002  val AP 0.0345  val R@50 0.33
+INFO epoch 11: loss 0.0002  val AP 0.0392  val R@50 0.33
+INFO epoch 12: loss 0.0001  val AP 0.0421  val R@50 0.33
+INFO epoch 13: loss 0.0001  val AP 0.0451  val R@50 0.33
+INFO epoch 14: loss 0.0001  val AP 0.0491  val R@50 0.33
+INFO epoch 15: loss 0.0000  val AP 0.0506  val R@50 0.33
+INFO epoch 16: loss 0.0000  val AP 0.0499  val R@50 0.33
+INFO epoch 17: loss 0.0000  val AP 0.0519  val R@50 0.33
+INFO epoch 18: loss 0.0120  val AP 0.3501  val R@50 0.33
+INFO epoch 19: loss 0.0017  val AP 0.2458  val R@50 0.67
+INFO epoch 20: loss 0.0002  val AP 0.2095  val R@50 0.67
+INFO run complete: best val AP 0.3501 (epoch 18) -> C:\Users\RITHESH\Downloads\SUNGRAZER AI\data\models\temporal_ranker_v1\run_e15e45e495afb442_data4e7cca25_seed2
+=== train exit 0 ===
+INFO split test: excluding seq [21] from the negative pool (unlabeled comet day 2024-09-27)
+INFO split test: excluding seq [22] from the negative pool (unlabeled comet day 2024-09-28)
+INFO split test: excluding seq [24] from the negative pool (unlabeled comet day 2024-11-22)
+INFO split test: 5 positives, 7484 negatives
+INFO test: AP 0.0442  R@50 0.40  (5 pos / 7489 tracks)
+INFO   positive seq24_e91e65277cbe11c1_00106 rank 7/7489
+INFO   positive seq9_e91e65277cbe11c1_00045 rank 31/7489
+INFO   positive seq26_e91e65277cbe11c1_00068 rank 258/7489
+INFO   positive seq25_e91e65277cbe11c1_00836 rank 2948/7489
+INFO   positive seq13_e91e65277cbe11c1_00279 rank 5779/7489
+=== eval exit 0 2026-09-21T22:23:27.2403780+05:30 ===
