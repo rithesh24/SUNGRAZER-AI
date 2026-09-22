@@ -165,6 +165,15 @@ def test_evidence_missing_files_is_500():
         os.environ["SOHO_DATA_ROOT"] = saved
 
 
+def test_candidate_report_fallback():
+    os.environ.pop("GROQ_API_KEY", None)  # force the deterministic path
+    body = client.get(f"/api/candidates/{TRACKS[0]}/report").json()
+    assert body["generated_by"] == "fallback"
+    assert "## Assessment" in body["report"]
+    assert body["event"]["soho_number"] == 5057
+    assert client.get("/api/candidates/seq99_nope_00000/report").status_code == 404
+
+
 def test_statistics():
     body = client.get("/api/statistics").json()
     assert body["candidates_total"] == 3

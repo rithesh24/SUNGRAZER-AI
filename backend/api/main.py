@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from agent.discovery import run_agent
 from dataset.evidence import build_evidence
 from db.models import Candidate, ImageSequence, ModelPrediction
 from db.session import SessionLocal
@@ -145,6 +146,17 @@ def candidate_evidence(track_id: str,
         raise HTTPException(404, f"candidate {track_id!r} not found")
     except FileNotFoundError as exc:
         # In the DB but its pipeline files are missing: server-side data gap.
+        raise HTTPException(500, f"evidence incomplete: {exc}")
+
+
+@app.get("/api/candidates/{track_id}/report")
+def candidate_report(track_id: str,
+                     session: Session = Depends(get_session)) -> dict:
+    try:
+        return run_agent(session, _data_root(), track_id)
+    except KeyError:
+        raise HTTPException(404, f"candidate {track_id!r} not found")
+    except FileNotFoundError as exc:
         raise HTTPException(500, f"evidence incomplete: {exc}")
 
 
