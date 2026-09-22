@@ -149,22 +149,29 @@ def _dna_vector(record: dict) -> np.ndarray:
 class TrackCropDataset(Dataset):
     """Binary track-classification dataset for one split."""
 
-    def __init__(self, data_root: Path, split: str,
+    def __init__(self, data_root: Path, split: str | None,
                  max_frames: int = 16, sigma_floor: float = 1e-6,
-                 with_dna: bool = False):
+                 with_dna: bool = False,
+                 explicit_tracks: list[str] | None = None):
         self.data_root = Path(data_root)
         self.split = split
         self.max_frames = max_frames
         self.sigma_floor = sigma_floor
         self.with_dna = with_dna
-        labels_file = self.data_root / "dataset" / "v1" / "labels.json"
-        labels = json.loads(labels_file.read_text(encoding="utf-8"))
-        tracks = resolve_split(labels, split, self.data_root)
-        self.track_ids = tracks.all_tracks
-        self.labels = torch.cat([torch.ones(len(tracks.positives)),
-                                 torch.zeros(len(tracks.negatives))])
-        logger.info("split %s: %d positives, %d negatives",
-                    split, len(tracks.positives), len(tracks.negatives))
+        if explicit_tracks is not None:
+            # Inference over an arbitrary track list (e.g. scoring a whole
+            # sequence for the candidate DB); labels are all-zero dummies.
+            self.track_ids = list(explicit_tracks)
+            self.labels = torch.zeros(len(self.track_ids))
+        else:
+            labels_file = self.data_root / "dataset" / "v1" / "labels.json"
+            labels = json.loads(labels_file.read_text(encoding="utf-8"))
+            tracks = resolve_split(labels, split, self.data_root)
+            self.track_ids = tracks.all_tracks
+            self.labels = torch.cat([torch.ones(len(tracks.positives)),
+                                     torch.zeros(len(tracks.negatives))])
+            logger.info("split %s: %d positives, %d negatives",
+                        split, len(tracks.positives), len(tracks.negatives))
         self.dna: dict[str, np.ndarray] = {}
         if with_dna:
             for seq_id in sorted({_sequence_of(t) for t in self.track_ids}):

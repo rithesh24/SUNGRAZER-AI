@@ -28,6 +28,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Ingestion statuses mirrored from ingestion.manifest.
@@ -126,3 +127,72 @@ class Image(Base):
 
     mission: Mapped[Mission] = relationship(back_populates="images")
     sequence: Mapped[ImageSequence | None] = relationship(back_populates="images")
+
+
+# Candidate review statuses (claude.md section 12.3). Only a subset is
+# assigned automatically; the rest exist for the (descoped) review workflow.
+CANDIDATE_STATUSES = ("HIGH_PRIORITY", "MEDIUM_PRIORITY", "LOW_PRIORITY",
+                      "KNOWN_COMET", "LIKELY_ARTIFACT", "UNRESOLVED")
+
+
+class Candidate(Base):
+    """One persistent moving-object track from the CV pipeline.
+
+    Mirrors ``processed/tracks/seq_<id>/tracks.json``; the file store stays
+    the scientific system of record (full per-frame arrays + provenance
+    hashes), this table is the queryable index the API serves. ``features``
+    holds the Motion DNA record (dna_v1) verbatim.
+    """
+
+    __tablename__ = "candidates"
+    __table_args__ = (
+        CheckConstraint(f"status IN {CANDIDATE_STATUSES}",
+                        name="ck_candidate_status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # e.g. "seq36_e91e65277cbe11c1_00104" — stable, config-hashed (§9).
+    track_id: Mapped[str] = mapped_column(String(64), unique=True)
+    sequence_id: Mapped[int] = mapped_column(
+        ForeignKey("image_sequences.id"), index=True
+    )
+    n_frames: Mapped[int] = mapped_column(Integer)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Motion DNA (dna_v1) feature dict, verbatim from motion_dna.json.
+    features: Mapped[dict | None] = mapped_column(JSONB)
+    # "comet" for confirmed positive tracks (labels.json), "excluded" for
+    # tracks whose day is excluded from the negative pool, else null.
+    label: Mapped[str | None] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default="UNRESOLVED")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    sequence: Mapped[ImageSequence] = relationship()
+    predictions: Mapped[list["ModelPrediction"]] = relationship(
+        back_populates="candidate"
+    )
+
+
+class ModelPrediction(Base):
+    """One model's (or fusion's) score for one candidate."""
+
+    __tablename__ = "model_predictions"
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "run_id", name="uq_prediction_run"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(
+        ForeignKey("candidates.id"), index=True
+    )
+    model_version: Mapped[str] = mapped_column(String(50))
+    # Run-dir name (e.g. "run_f7ded503..._seed0") or a fusion id.
+    run_id: Mapped[str] = mapped_column(String(100))
+    score: Mapped[float] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    candidate: Mapped[Candidate] = relationship(back_populates="predictions")
