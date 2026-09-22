@@ -6,3 +6,7 @@ sqlalchemy>=2.0
 alembic>=1.13
 psycopg[binary]>=3.1
 torch>=2.0  # CUDA build (RTX 3050): pip install torch==2.14.0+cu130 --index-url https://download.pytorch.org/whl/cu130 ; CPU fallback: --index-url https://download.pytorch.org/whl/cpu
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27  # fastapi TestClient
+pytest>=8.0
