@@ -54,11 +54,14 @@ def _seed() -> None:
         rows = [
             Candidate(id=1, track_id=TRACKS[0], sequence_id=36, n_frames=9,
                       start_time=T0, end_time=T1, label="comet",
-                      status="KNOWN_COMET", features={"speed": 1.5}),
+                      status="KNOWN_COMET",
+                      features={"speed": 1.5, "curv": 0.1}),
             Candidate(id=2, track_id=TRACKS[1], sequence_id=36, n_frames=7,
-                      status="HIGH_PRIORITY"),
+                      status="HIGH_PRIORITY",
+                      features={"speed": 1.4, "curv": 0.12}),
             Candidate(id=3, track_id=TRACKS[2], sequence_id=36, n_frames=5,
-                      status="LOW_PRIORITY"),
+                      status="LOW_PRIORITY",
+                      features={"speed": 9.0, "curv": 2.0}),
         ]
         s.add_all(rows)
         s.add_all([
@@ -131,12 +134,14 @@ def test_candidates_filters_and_paging():
     assert body["total"] == 1 and body["items"][0]["status"] == "KNOWN_COMET"
     body = client.get("/api/candidates", params={"limit": 1, "offset": 1}).json()
     assert body["total"] == 3 and body["items"][0]["track_id"] == TRACKS[1]
+    body = client.get("/api/candidates", params={"q": "00002"}).json()
+    assert body["total"] == 1 and body["items"][0]["track_id"] == TRACKS[1]
 
 
 def test_candidate_detail():
     body = client.get(f"/api/candidates/{TRACKS[0]}").json()
     assert body["fusion_score"] == 0.9
-    assert body["features"] == {"speed": 1.5}
+    assert body["features"] == {"speed": 1.5, "curv": 0.1}
     assert [p["run_id"] for p in body["predictions"]] == [
         "fusion_mean_v1", "run_baseline_seed0"]
     assert client.get("/api/candidates/seq99_nope_00000").status_code == 404
@@ -165,6 +170,24 @@ def test_evidence_missing_files_is_500():
         os.environ["SOHO_DATA_ROOT"] = saved
 
 
+def test_crops_filmstrip():
+    import numpy as np
+    root = Path(os.environ["SOHO_DATA_ROOT"])
+    crop_dir = root / "processed" / "candidate_crops" / "seq_36"
+    crop_dir.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(0)
+    np.savez(crop_dir / f"{TRACKS[0]}.npz",
+             crops=rng.normal(size=(5, 32, 32)).astype(np.float32))
+    response = client.get(f"/api/candidates/{TRACKS[0]}/crops.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
+    # width encodes the frame count: 5 frames * 32 px * scale 4
+    width = int.from_bytes(response.content[16:20], "big")
+    assert width == 5 * 32 * 4
+    assert client.get(f"/api/candidates/{TRACKS[1]}/crops.png").status_code == 404
+
+
 def test_candidate_report_fallback():
     os.environ.pop("GROQ_API_KEY", None)  # force the deterministic path
     body = client.get(f"/api/candidates/{TRACKS[0]}/report").json()
@@ -183,6 +206,38 @@ def test_statistics():
     assert body["sequences_total"] == 1
     assert {r["run_id"]: r["n_predictions"] for r in body["runs"]} == {
         "fusion_mean_v1": 2, "run_baseline_seed0": 1}
+
+
+def test_similar_by_motion_dna():
+    body = client.get(f"/api/candidates/{TRACKS[0]}/similar").json()
+    assert [m["track_id"] for m in body["matches"]] == [TRACKS[1], TRACKS[2]]
+    assert body["matches"][0]["dna_distance"] < body["matches"][1]["dna_distance"]
+    assert body["matches"][0]["fusion_score"] == 0.5  # joined scores survive
+    assert client.get("/api/candidates/seq99_nope_00000/similar").status_code == 404
+
+
+def test_review_write_and_clear():
+    url = f"/api/candidates/{TRACKS[2]}/review"
+    body = client.patch(url, json={"review": "artifact",
+                                   "reviewer_notes": "cosmic ray chain"}).json()
+    assert body["review"] == "artifact"
+    assert body["reviewer_notes"] == "cosmic ray chain"
+    assert body["reviewed_at"] is not None
+    assert body["status"] == "LOW_PRIORITY"  # machine status untouched
+    # verdict shows up in the list payload too
+    item = client.get("/api/candidates", params={"q": "00003"}).json()["items"][0]
+    assert item["review"] == "artifact"
+    # clearing both resets reviewed_at
+    body = client.patch(url, json={"review": None, "reviewer_notes": None}).json()
+    assert body["review"] is None and body["reviewed_at"] is None
+
+
+def test_review_validation():
+    url = f"/api/candidates/{TRACKS[2]}/review"
+    assert client.patch(url, json={"review": "not_a_verdict"}).status_code == 422
+    assert client.patch(url, json={}).status_code == 422
+    assert client.patch("/api/candidates/seq99_nope_00000/review",
+                        json={"review": "approved"}).status_code == 404
 
 
 if __name__ == "__main__":

@@ -134,6 +134,11 @@ class Image(Base):
 CANDIDATE_STATUSES = ("HIGH_PRIORITY", "MEDIUM_PRIORITY", "LOW_PRIORITY",
                       "KNOWN_COMET", "LIKELY_ARTIFACT", "UNRESOLVED")
 
+# Human review verdicts — deliberately separate from ``status`` so machine
+# ranking and human judgment never overwrite each other.
+REVIEW_VERDICTS = ("approved", "rejected", "artifact", "known_object",
+                   "uncertain")
+
 
 class Candidate(Base):
     """One persistent moving-object track from the CV pipeline.
@@ -148,6 +153,8 @@ class Candidate(Base):
     __table_args__ = (
         CheckConstraint(f"status IN {CANDIDATE_STATUSES}",
                         name="ck_candidate_status"),
+        CheckConstraint(f"review IS NULL OR review IN {REVIEW_VERDICTS}",
+                        name="ck_candidate_review"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -165,6 +172,10 @@ class Candidate(Base):
     # tracks whose day is excluded from the negative pool, else null.
     label: Mapped[str | None] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), default="UNRESOLVED")
+    # Human review (S7): verdict + notes, never touched by the pipeline.
+    review: Mapped[str | None] = mapped_column(String(20))
+    reviewer_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

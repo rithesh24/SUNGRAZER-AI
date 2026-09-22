@@ -1,6 +1,6 @@
 # Secrets / local config
 .env
-
+.env.example
 # Data and model artifacts (large binaries stay on the filesystem, out of git)
 data/
 models/
