@@ -12,3 +12,4 @@ httpx>=0.27  # fastapi TestClient
 pytest>=8.0
 langgraph>=1.0
 groq>=0.13
+python-dotenv>=1.0

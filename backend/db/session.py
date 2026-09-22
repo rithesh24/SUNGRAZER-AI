@@ -7,9 +7,15 @@ connection at import time; the engine connects lazily on first use.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+# Root .env (never overrides real environment variables). Loaded here
+# because every entry point — API, agent, CLIs — imports this module.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://sungrazer:sungrazer@localhost:5432/sungrazer"
 
