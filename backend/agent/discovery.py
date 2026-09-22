@@ -28,7 +28,7 @@ from db.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 
 SYSTEM_PROMPT = """\
 You are the discovery assistant of SUNGRAZER AI, a pipeline that surfaces
