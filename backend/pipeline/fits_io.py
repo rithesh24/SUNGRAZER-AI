@@ -112,7 +112,11 @@ def load_science_image(path: Path | str) -> ScienceImage:
         # (no dangling file handle — Windows keeps mmap-backed files locked)
         # and be native byte order (FITS is big-endian; OpenCV rejects '>i2').
         with fits.open(path, memmap=False) as hdul:
-            hdul.verify("exception")
+            # Header defects (e.g. 2026+ SDAC files carry a tab inside a
+            # comment card, which astropy deems unfixable) must not reject the
+            # frame: fix what's fixable, log the rest. Real corruption still
+            # fails when the pixel data is decoded just below.
+            hdul.verify("silentfix+warn")
             image_hdu = next(
                 (h for h in hdul
                  if h.data is not None and getattr(h.data, "ndim", 0) == 2),

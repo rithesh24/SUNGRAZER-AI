@@ -4,6 +4,7 @@ import Overview from './pages/Overview'
 import Explorer from './pages/Explorer'
 import Detail from './pages/Detail'
 import Archaeology from './pages/Archaeology'
+import Live from './pages/Live'
 
 function Placeholder({ title, note }: { title: string; note: string }) {
   return (
@@ -20,6 +21,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Overview />} />
+          <Route path="live" element={<Live />} />
           <Route path="candidates" element={<Explorer />} />
           <Route path="candidates/:trackId" element={<Detail />} />
           <Route path="review"

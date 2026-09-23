@@ -84,6 +84,24 @@ export interface AgentReport {
   event: Evidence['event']
 }
 
+export interface LiveDay {
+  date: string // YYYY-MM-DD
+  frames: number
+  ingested: boolean
+  sequence_ids: number[]
+}
+
+export interface LiveStatus {
+  state: 'idle' | 'running' | 'done' | 'error'
+  date: string | null
+  stage: string | null
+  stages_done: number
+  stages_total: number
+  log_tail: string[]
+  sequence_ids: number[]
+  error: string | null
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init)
   if (!res.ok) {
@@ -119,6 +137,14 @@ export const api = {
   candidate: (trackId: string) => get<CandidateDetail>(`/candidates/${trackId}`),
   evidence: (trackId: string) => get<Evidence>(`/candidates/${trackId}/evidence`),
   report: (trackId: string) => get<AgentReport>(`/candidates/${trackId}/report`),
+  liveAvailable: () => get<{ days: LiveDay[] }>('/live/available'),
+  liveStatus: () => get<LiveStatus>('/live/status'),
+  liveRun: (date: string) =>
+    request<LiveStatus>('/live/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date }),
+    }),
   review: (trackId: string, body: { review?: string | null; reviewer_notes?: string | null }) =>
     request<Candidate>(`/candidates/${trackId}/review`, {
       method: 'PATCH',

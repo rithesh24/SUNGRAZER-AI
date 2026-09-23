@@ -226,6 +226,20 @@ body {
   font-size: 13px;
 }
 
+/* Live-analysis progress bar */
+.bar-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.bar-track .bar {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
+
 .status-row .bar {
   height: 8px;
   border-radius: 4px;

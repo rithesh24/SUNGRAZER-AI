@@ -32,6 +32,32 @@ export default function Overview() {
         not confirmed discoveries.
       </p>
 
+      <div className="panel">
+        <h2>What this software does</h2>
+        <p style={{ margin: '0 0 10px' }}>
+          The SOHO spacecraft photographs the Sun's surroundings every ~12
+          minutes. Sungrazing comets — fragments of ancient broken-up comets —
+          cross that field of view, evaporate against the Sun, and are gone
+          within hours. Most are found by volunteers eyeballing the images;
+          faint ones get missed.
+        </p>
+        <p style={{ margin: '0 0 10px' }}>
+          SUNGRAZER AI automates the search: it downloads the raw imagery,
+          aligns the frames, extracts every persistent moving object, computes
+          a behavioral fingerprint (Motion&nbsp;DNA) for each, and ranks them
+          with a temporal neural network so the most comet-like tracks surface
+          first. A discovery agent then narrates the structured evidence for
+          each candidate.
+        </p>
+        <p className="page-sub" style={{ margin: 0, fontSize: 13 }}>
+          Validated on 41 days of 2024 archive data: 10 of 15 confirmed comets
+          recovered, each ranked #1 within its own day. A high score means
+          "worth a human's two minutes" — confirmation always requires human
+          review, and verified positions can be submitted to the Sungrazer
+          Project for official designation.
+        </p>
+      </div>
+
       <div className="tiles">
         <div className="tile">
           <div className="label">Candidate tracks</div>

@@ -28,10 +28,13 @@ from db.session import SessionLocal
 # Primary ranking signal (ship plan S2): mean of sigmoids across checkpoints.
 FUSION_RUN_ID = "fusion_mean_v1"
 
+from api.live import router as live_router
+
 app = FastAPI(title="SUNGRAZER AI", version="0.1.0")
 # ponytail: allow-all CORS for local dev; restrict origins if ever deployed.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
+app.include_router(live_router)
 
 
 def get_session():

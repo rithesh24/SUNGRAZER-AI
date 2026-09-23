@@ -5,10 +5,11 @@ import { api } from '../lib/api'
 
 const NAV = [
   { to: '/', label: 'Overview', end: true },
+  { to: '/live', label: 'Live analysis' },
   { to: '/candidates', label: 'Candidates' },
+  { to: '/unknown', label: 'Unknown objects' },
   { to: '/review', label: 'Review queue' },
   { to: '/archaeology', label: 'Archaeology' },
-  { to: '/unknown', label: 'Unknown objects' },
 ]
 
 export default function Layout() {

@@ -15,6 +15,30 @@ interface Star {
 }
 
 const STAR_COLORS = ['#ffffff', '#cfe2ff', '#ffe9c9', '#9fb6ff']
+const STAR_RGB: Record<string, string> = {
+  '#ffffff': '255,255,255',
+  '#cfe2ff': '207,226,255',
+  '#ffe9c9': '255,233,201',
+  '#9fb6ff': '159,182,255',
+}
+
+// Soft radial glow sprite, one per star color, drawn around bright stars.
+function makeGlowSprites(): Record<string, HTMLCanvasElement> {
+  const sprites: Record<string, HTMLCanvasElement> = {}
+  for (const [hex, rgb] of Object.entries(STAR_RGB)) {
+    const off = document.createElement('canvas')
+    off.width = off.height = 32
+    const g = off.getContext('2d')!
+    const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16)
+    grad.addColorStop(0, `rgba(${rgb},0.9)`)
+    grad.addColorStop(0.3, `rgba(${rgb},0.25)`)
+    grad.addColorStop(1, `rgba(${rgb},0)`)
+    g.fillStyle = grad
+    g.fillRect(0, 0, 32, 32)
+    sprites[hex] = off
+  }
+  return sprites
+}
 
 function makeStars(count: number): Star[] {
   const stars: Star[] = []
@@ -75,6 +99,7 @@ export default function Starfield() {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const stars = makeStars(420)
     const comets: Comet[] = []
+    const glows = makeGlowSprites()
     let milkyWay: HTMLCanvasElement | null = null
     let raf = 0
     let time = 0
@@ -123,23 +148,37 @@ export default function Starfield() {
         const px = x * width - offsetX * parallax
         const py = s.y * height - offsetY * parallax
         const tw = 0.65 + 0.35 * Math.sin(s.twinkle + time * (0.01 + s.z * 0.02))
-        ctx.globalAlpha = (0.25 + s.z * 0.6) * tw
+        ctx.globalAlpha = (0.35 + s.z * 0.6) * tw
         ctx.fillStyle = s.hue
         ctx.beginPath()
         ctx.arc(px, py, s.r, 0, Math.PI * 2)
         ctx.fill()
+        if (s.z > 0.55) {
+          // Bright (near) stars get a soft glow halo.
+          const halo = s.r * 7
+          ctx.globalAlpha = (0.35 + s.z * 0.35) * tw
+          ctx.drawImage(glows[s.hue], px - halo / 2, py - halo / 2, halo, halo)
+        }
       }
 
-      // Rare comet streak: ~ every 12s at 60fps.
-      if (!once && comets.length === 0 && Math.random() < 1 / 720) {
+      // Comet shower: a group of 2-3 on parallel paths (shared velocity, so
+      // they never cross); the next group spawns only after all are gone.
+      if (!once && comets.length === 0 && Math.random() < 1 / 120) {
         const fromLeft = Math.random() < 0.5
-        comets.push({
-          x: fromLeft ? -60 : width + 60,
-          y: Math.random() * height * 0.5,
-          vx: (fromLeft ? 1 : -1) * (4 + Math.random() * 3),
-          vy: 1.2 + Math.random() * 1.4,
-          life: 260,
-        })
+        const vx = (fromLeft ? 1 : -1) * (4 + Math.random() * 3)
+        const vy = 1.2 + Math.random() * 1.4
+        const n = 2 + Math.floor(Math.random() * 2)
+        for (let i = 0; i < n; i++) {
+          // Trailing comets start staggered behind the leader.
+          const lag = i * (20 + Math.random() * 25)
+          comets.push({
+            x: (fromLeft ? -60 : width + 60) - vx * lag,
+            y: Math.random() * height * 0.5,
+            vx,
+            vy,
+            life: 260 + lag,
+          })
+        }
       }
       for (let i = comets.length - 1; i >= 0; i--) {
         const c = comets[i]
@@ -158,7 +197,10 @@ export default function Starfield() {
         ctx.moveTo(c.x, c.y)
         ctx.lineTo(c.x - c.vx * tail, c.y - c.vy * tail)
         ctx.stroke()
-        if (c.life <= 0 || c.x < -100 || c.x > width + 100 || c.y > height + 100) {
+        // Cull only past the far edge (trailing group members spawn deep
+        // behind the near edge and must survive their approach).
+        const gone = c.vx > 0 ? c.x > width + 100 : c.x < -100
+        if (c.life <= 0 || gone || c.y > height + 100) {
           comets.splice(i, 1)
         }
       }
