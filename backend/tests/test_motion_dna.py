@@ -18,6 +18,7 @@ from pipeline.motion_dna import (  # noqa: E402
 T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
 CADENCE_S = 720  # 12 min
 SEQ = [f"f{i:03d}" for i in range(20)]
+EPOCHS = [T0 + timedelta(seconds=CADENCE_S * i) for i in range(20)]
 
 
 def make_track(positions, fluxes=None, areas=None, frame_indices=None):
@@ -37,7 +38,7 @@ def make_track(positions, fluxes=None, areas=None, frame_indices=None):
 def test_constant_velocity_track():
     # 5 px/frame in +x: straight, smooth, zero acceleration.
     track = make_track([(100 + 5 * i, 200) for i in range(6)])
-    f = compute_features(track, SEQ, sun_center=(512.0, 512.0))
+    f = compute_features(track, EPOCHS, sun_center=(512.0, 512.0))
     assert f["n_frames"] == 6
     assert f["frame_coverage"] == 1.0
     assert f["duration_s"] == 5 * CADENCE_S
@@ -53,7 +54,7 @@ def test_constant_velocity_track():
 
 
 def test_static_track_zero_motion():
-    f = compute_features(make_track([(300, 300)] * 5), SEQ, (512.0, 512.0))
+    f = compute_features(make_track([(300, 300)] * 5), EPOCHS, (512.0, 512.0))
     assert f["speed_mean_px_s"] == 0.0
     assert f["displacement_px"] == 0.0
     assert f["direction_deg"] is None            # undefined, not fabricated
@@ -65,7 +66,7 @@ def test_static_track_zero_motion():
 def test_right_angle_turn_has_curvature():
     positions = [(100 + 5 * i, 200) for i in range(4)]
     positions += [(115, 200 + 5 * i) for i in range(1, 4)]
-    f = compute_features(make_track(positions), SEQ, (512.0, 512.0))
+    f = compute_features(make_track(positions), EPOCHS, (512.0, 512.0))
     # One 90-degree turn over a 30 px path.
     assert abs(f["curvature_rad_px"] - (math.pi / 2) / 30) < 1e-6
     assert f["direction_consistency"] < 1.0
@@ -76,14 +77,14 @@ def test_right_angle_turn_has_curvature():
 def test_missed_frame_lowers_coverage():
     f = compute_features(
         make_track([(100, 100), (105, 100), (115, 100), (120, 100)],
-                   frame_indices=[0, 1, 3, 4]), SEQ, None)
+                   frame_indices=[0, 1, 3, 4]), EPOCHS, None)
     assert f["frame_coverage"] == 0.8  # 4 of 5 spanned frames
 
 
 def test_brightening_flux_positive_slope():
     fluxes = [100.0 + 20.0 * i for i in range(5)]
     f = compute_features(make_track([(100 + i, 100) for i in range(5)],
-                                    fluxes=fluxes), SEQ, None)
+                                    fluxes=fluxes), EPOCHS, None)
     # 20 flux/frame = 100/hour on mean 140 -> ~0.714 frac/h.
     assert abs(f["flux_slope_frac_h"] - (20 * 3600 / CADENCE_S) / 140.0) < 1e-3
     assert f["flux_cv"] > 0.0
@@ -92,7 +93,7 @@ def test_brightening_flux_positive_slope():
 def test_inbound_track_negative_radial_speed():
     # Moving straight toward the sun center.
     f = compute_features(make_track([(212 + 50 * i, 512) for i in range(5)]),
-                         SEQ, (512.0, 512.0))
+                         EPOCHS, (512.0, 512.0))
     assert f["radial_speed_px_s"] < 0
     assert f["r_min_px"] == 100.0
     assert f["r_max_px"] == 300.0
@@ -100,13 +101,13 @@ def test_inbound_track_negative_radial_speed():
 
 def test_no_sun_center_radial_features_null():
     f = compute_features(make_track([(100 + i, 100) for i in range(5)]),
-                         SEQ, None)
+                         EPOCHS, None)
     assert f["r_min_px"] is None and f["radial_speed_px_s"] is None
     assert validate_features(f) == []
 
 
 def test_short_track_higher_order_features_null():
-    f = compute_features(make_track([(100, 100), (105, 100)]), SEQ, None)
+    f = compute_features(make_track([(100, 100), (105, 100)]), EPOCHS, None)
     assert f["accel_mean_px_s2"] is None
     assert f["curvature_rad_px"] is None
     assert f["linear_rms_px"] is None
@@ -116,7 +117,7 @@ def test_short_track_higher_order_features_null():
 
 def test_validate_catches_bad_values():
     f = compute_features(make_track([(100 + i, 100) for i in range(5)]),
-                         SEQ, (512.0, 512.0))
+                         EPOCHS, (512.0, 512.0))
     f["frame_coverage"] = 1.5
     f["speed_mean_px_s"] = float("nan")
     problems = validate_features(f)

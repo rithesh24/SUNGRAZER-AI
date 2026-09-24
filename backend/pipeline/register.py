@@ -264,7 +264,12 @@ def main(argv: list[str] | None = None) -> int:
         evaluate_methods(args.sequence_id, Path(args.data_root))
         return 0
     summary = register_sequence(args.sequence_id, Path(args.data_root))
-    return 0 if summary["failed"] == 0 else 1
+    # A few unusable frames (wrong binning, bad warp) must not abort the
+    # sequence; fail only when there were failures and nothing succeeded
+    # (skipped = already done, counts as ok).
+    if summary["failed"] and not (summary["registered"] + summary["skipped"]):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

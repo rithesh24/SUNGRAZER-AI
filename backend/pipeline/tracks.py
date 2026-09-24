@@ -96,6 +96,8 @@ class _Track:
         if len(self.times) < 2:
             return self.xs[-1], self.ys[-1]
         span = (self.times[-1] - self.times[0]).total_seconds()
+        if span <= 0:  # duplicate timestamps: no velocity information
+            return self.xs[-1], self.ys[-1]
         dt = (at_time - self.times[-1]).total_seconds()
         vx = (self.xs[-1] - self.xs[0]) / span
         vy = (self.ys[-1] - self.ys[0]) / span
@@ -239,6 +241,16 @@ def tracks_sequence(sequence_id: int, data_root: Path,
                            for name, entry in motion["frames"].items()}
     timestamps = load_timestamps(sequence_id, data_root, list(detections_by_frame))
     frame_names = sorted(detections_by_frame, key=lambda n: timestamps[n])
+    # The recent archive sometimes re-serves a frame under a second file id
+    # with an identical DATE-OBS; zero-dt observations break velocity math
+    # here and in motion_dna, so keep only the first frame per timestamp.
+    seen_times: set[datetime] = set()
+    unique = [n for n in frame_names
+              if not (timestamps[n] in seen_times or seen_times.add(timestamps[n]))]
+    if len(unique) < len(frame_names):
+        logger.warning("Dropped %d duplicate-timestamp frame(s)",
+                       len(frame_names) - len(unique))
+    frame_names = unique
 
     all_tracks = build_tracks(frame_names, detections_by_frame, timestamps, config)
     kept = [t for t in all_tracks if len(t.frames) >= config.min_track_frames]

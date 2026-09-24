@@ -28,6 +28,8 @@ RECENT_BASE_URL = os.environ.get(
 
 HTTP_TIMEOUT_SECONDS = float(os.environ.get("LASCO_HTTP_TIMEOUT_SECONDS", "60"))
 DOWNLOAD_RETRIES = int(os.environ.get("LASCO_DOWNLOAD_RETRIES", "3"))
+# Concurrent downloads per day; 6 matches the availability probe in api.live.
+DOWNLOAD_WORKERS = int(os.environ.get("LASCO_DOWNLOAD_WORKERS", "6"))
 
 # Maximum time between consecutive frames of one image_sequence. Observed
 # nominal cadence: ~12 min (C3), ~20 min (C2); 60 min tolerates a few missed

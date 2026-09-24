@@ -68,6 +68,7 @@ import numpy as np
 
 from pipeline.fileio import atomic_write_text
 from pipeline.fits_io import load_science_image
+from pipeline.tracks import load_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -93,13 +94,15 @@ def _linear_slope(t: np.ndarray, values: np.ndarray) -> float:
     return float(np.polyfit(t, values, 1)[0])
 
 
-def compute_features(track: dict, sequence_frames: list[str],
+def compute_features(track: dict, sequence_epochs: list[datetime],
                      sun_center: tuple[float, float] | None) -> dict:
     """Motion DNA for one track record from tracks.json. Pure function.
 
-    ``sequence_frames`` is the chronological frame-name list of the whole
-    sequence (for frame coverage); ``sun_center`` is 0-based pixel coords
-    of the registered reference frame, or None if unknown.
+    ``sequence_epochs`` is the sorted unique observation timestamps of the
+    whole sequence (for frame coverage — timestamps, not file names, because
+    the recent archive sometimes lists file ids out of chronological order);
+    ``sun_center`` is 0-based pixel coords of the registered reference
+    frame, or None if unknown.
     """
     times = [datetime.fromisoformat(ts) for ts in track["timestamps"]]
     t = np.array([(ts - times[0]).total_seconds() for ts in times])
@@ -115,8 +118,8 @@ def compute_features(track: dict, sequence_frames: list[str],
     displacement = float(np.hypot(*(xy[-1] - xy[0])))
     duration = float(t[-1] - t[0])
 
-    first_idx = sequence_frames.index(track["frames"][0])
-    last_idx = sequence_frames.index(track["frames"][-1])
+    first_idx = sequence_epochs.index(times[0])
+    last_idx = sequence_epochs.index(times[-1])
     coverage = n / (last_idx - first_idx + 1)
 
     velocities = steps / dts[:, None]
@@ -255,14 +258,16 @@ def motion_dna_sequence(sequence_id: int, data_root: Path,
     reg_manifest = (data_root / "processed" / "registered"
                     / f"seq_{sequence_id}" / "registration_manifest.json")
     reg = json.loads(reg_manifest.read_text(encoding="utf-8"))
-    sequence_frames = sorted(name for name, e in reg["frames"].items()
-                             if e["status"] in ("ok", "reference"))
+    reg_names = [name for name, e in reg["frames"].items()
+                 if e["status"] in ("ok", "reference")]
+    sequence_epochs = sorted(
+        set(load_timestamps(sequence_id, data_root, reg_names).values()))
     sun_center = reference_sun_center(sequence_id, data_root)
 
     features_by_track = {}
     invalid = 0
     for track in tracks["tracks"]:
-        features = compute_features(track, sequence_frames, sun_center)
+        features = compute_features(track, sequence_epochs, sun_center)
         problems = validate_features(features)
         if problems:
             invalid += 1
